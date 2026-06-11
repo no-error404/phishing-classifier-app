@@ -1,3 +1,5 @@
+const { validateEmail } = require("./validator.js");
+
 async function classifyEmail(emailInput) {
     
 validateEmail(emailInput);

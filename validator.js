@@ -7,3 +7,5 @@ function validateEmail(emailInput){
     }
 
 }
+
+module.exports = { validateEmail };
