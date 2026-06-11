@@ -1,4 +1,13 @@
-async function classifyEmail(emailText) {
+async function classifyEmail(emailInput) {
+    
+validateEmail(emailInput);
+    
+const emailText = `From: ${emailInput.from}
+To: ${emailInput.to}
+Subject: ${emailInput.subject}
+
+${emailInput.message}`;
+
     const payload = {
         model: "llama3:instruct",
         messages:[
@@ -35,5 +44,15 @@ async function classifyEmail(emailText) {
     }
 }
 
-const result = await classifyEmail("Dear user, click here to verify your bank account immediately or it will be suspended.");
+const emailInput = {
+    from: "fitness first",
+    to: "davidjones@gmmail.com",
+    subject: "Exclusive Offer Just for You!",
+    message: "Dear David, We are excited to offer you an exclusive discount on our fitness programs. Click the link below to claim your offer now! [malicious link]"    
+}
+
+
+
+const result = await classifyEmail(emailInput);
 console.log(result);
+
