@@ -1,4 +1,4 @@
-const { validateEmail } = import("./validator.js");
+import { validateEmail } from "./validator.js";
 
 async function classifyEmail(emailInput) {
     
@@ -34,7 +34,11 @@ ${emailInput.message}`;
         body: JSON.stringify(payload)
     });
     
-    const data = await response.json();
+    if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+        const data = await response.json();
     
     try{
         const parsed = JSON.parse(data.choices[0].message.content);
@@ -47,10 +51,10 @@ ${emailInput.message}`;
 }
 
 const emailInput = {
-    from: "fitness first",
-    to: "davidjones@gmmail.com",
+    from: "fitnessfirst@gym.com",
+    to: "davidjones@gmail.com",
     subject: "Exclusive Offer Just for You!",
-    message: "Dear David, We are excited to offer you an exclusive discount on our fitness programs. Click the link below to claim your offer now! [malicious link]"    
+    message: "Dear David, We noticed you haven't been to the gym in a while. Come back and enjoy a 50% discount on your next month! Click here to claim your offer."    
 }
 
 

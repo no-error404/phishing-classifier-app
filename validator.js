@@ -8,4 +8,4 @@ function validateEmail(emailInput){
 
 }
 
-module.exports = { validateEmail };
+export { validateEmail };
