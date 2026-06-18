@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "mailparser": "^3.9.10"
+  },
+  "type": "module"
+}
+
+
