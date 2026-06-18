@@ -23,7 +23,7 @@ for (const file of files) {
         message: email.text,
         label: 'LEGITIMATE'
     });
-}
+}}
 
 async function loadPhshingEmails(){
 // parse mbox, return array of {from, to, subject, message, label} objects
