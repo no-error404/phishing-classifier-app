@@ -15,7 +15,8 @@ ${emailInput.message}`;
         messages:[
             {
                 role: "system",
-                content: `You are an email classifier. Classify the following email as either PHISHING or LEGITIMATE. 
+                content: `You are an email classifier. Classify the following email as either PHISHING or LEGITIMATE. Do not include any explanation, preamble, or markdown. 
+                Output only the raw JSON object and nothing else.
                 Respond only with valid JSON: {"classification": "PHISHING"|"LEGITIMATE", "confidence": 0-100, "reason": "a brief explanation"}`
             },
 
@@ -24,7 +25,8 @@ ${emailInput.message}`;
                 content: emailText 
             }
         ],
-        stream: false
+        stream: false,
+        format: "json"
     }
     const response = await fetch("http://localhost:11434/v1/chat/completions", {
         method: "POST",
@@ -58,7 +60,5 @@ const emailInput = {
 }
 
 
-
-const result = await classifyEmail(emailInput);
-console.log(result);
+export { classifyEmail };
 
