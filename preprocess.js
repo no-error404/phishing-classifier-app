@@ -25,12 +25,44 @@ for (const file of files) {
     });
 }}
 
-async function loadPhshingEmails(){
+async function loadPhishingEmails(){
 // parse mbox, return array of {from, to, subject, message, label} objects
+    const filePath = path.join(import.meta.dirname,'phishing.mbox');
+    const content = await readFile(filePath, 'utf-8');
+    const rawEmails = content.split('\nFrom '); // mbox format separates emails with "From " line
+    const phishingEmails = [];
+
+    for (const rawEmail of rawEmails){
+
+        if (!rawEmail.trim()) continue; // skip empty entries
+
+        const formattedEmail = rawEmail.startsWith('From ') ? rawEmail : 'From ' + rawEmail; // ensure each email starts with "From "
+
+        const email = await simpleParser(formattedEmail);
+        
+        phishingEmails.push({
+            from: email.from.value[0].address || 'unknown@sender.com',
+            to: email.to.value[0].address || 'unknown@receiver.com',
+            subject: email.subject || '(No Subject)',
+            message: email.text | email.textAsHtml || '',
+            label: 'PHISHING'
+        });
+    }
+    return phishingEmails;
+
+     catch (error) {
+        console.error("Error reading or parsing the mbox file:", error);
+        return []; // Return an empty array if something goes totally wrong
+    }
+    
 }
 
 async function main(){
 // call both loaders
 // combine results
 // write to emails.json
+    const hamEmails = await loadHamEmail();
+    const phishingEmails = await loadPhishingEmails();
+    const allEmails = [...hamEmails, ...phishingEmails];
+    await fs.writeFile(path.join(import.meta.dirname, 'emails.json'), JSON.stringify(allEmails, null, 2));
 }
