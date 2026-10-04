@@ -1,0 +1,42 @@
+{
+  "timestamp": "2026-09-23T01:48:46.305Z",
+  "total": 2,
+  "classified": 2,
+  "errors": 0,
+  "counts": {
+    "truePositive": 1,
+    "falsePositive": 1,
+    "trueNegative": 0,
+    "falseNegative": 0
+  },
+  "metrics": {
+    "precision": 0.5,
+    "recall": 1,
+    "f1": 0.6666666666666666,
+    "accuracy": 0.5
+  },
+  "percentages": {
+    "precision": "50.00%",
+    "recall": "100.00%",
+    "f1": "66.67%",
+    "accuracy": "50.00%"
+  },
+  "details": [
+    {
+      "from": "a@example.com",
+      "subject": "s1",
+      "actual": "LEGITIMATE",
+      "predicted": "PHISHING",
+      "confidence": 90,
+      "error": null
+    },
+    {
+      "from": "c@example.com",
+      "subject": "s2",
+      "actual": "PHISHING",
+      "predicted": "PHISHING",
+      "confidence": 90,
+      "error": null
+    }
+  ]
+}

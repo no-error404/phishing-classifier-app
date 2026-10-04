@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Phishing Email Classifier</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #c9d1d9;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hover: #79b8ff;
+      --accent-active: #1f6feb;
+      --danger: #f85149;
+      --success: #3fb950;
+      --focus: #2f81f7;
+      --shadow: rgba(0, 0, 0, 0.35);
+    }
+
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #ffffff;
+        --panel: #f6f8fa;
+        --border: #d0d7de;
+        --text: #24292f;
+        --muted: #57606a;
+        --accent: #0969da;
+        --accent-hover: #0550ae;
+        --accent-active: #033d8b;
+        --danger: #cf222e;
+        --success: #1a7f37;
+        --focus: #0969da;
+        --shadow: rgba(31, 35, 40, 0.08);
+      }
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1.5rem;
+    }
+
+    main {
+      width: 100%;
+      max-width: 52rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.75rem;
+      box-shadow: 0 4px 24px var(--shadow);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    p.subtitle {
+      margin: 0.25rem 0 0;
+      color: var(--muted);
+      font-size: 0.875rem;
+    }
+
+    .editor {
+      padding: 1.5rem;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 0.375rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    input[type="text"],
+    textarea {
+      width: 100%;
+      min-height: 44px;
+      padding: 0.625rem 0.75rem;
+      margin-bottom: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 0.9375rem;
+      line-height: 1.5;
+      outline: none;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 12rem;
+    }
+
+    input[type="text"]:focus,
+    textarea:focus {
+      border-color: var(--focus);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 20%, transparent);
+    }
+
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      padding: 0 1.5rem 1.5rem;
+    }
+
+    button {
+      min-height: 44px;
+      min-width: 44px;
+      padding: 0.625rem 1.25rem;
+      border: 1px solid var(--accent);
+      border-radius: 0.5rem;
+      background: var(--accent);
+      color: #fff;
+      font-size: 0.9375rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+
+    button:hover {
+      background: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    button:active {
+      background: var(--accent-active);
+      border-color: var(--accent-active);
+    }
+
+    button:focus-visible {
+      outline: 3px solid color-mix(in srgb, var(--focus) 40%, transparent);
+      outline-offset: 2px;
+    }
+
+    button.secondary {
+      background: transparent;
+      color: var(--accent);
+      border-color: var(--border);
+    }
+
+    button.secondary:hover {
+      background: var(--bg);
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid currentColor;
+      border-right-color: transparent;
+      border-radius: 50%;
+      margin-right: 0.5rem;
+      vertical-align: middle;
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+      .spinner {
+        animation: spin 0.75s linear infinite;
+      }
+
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+    }
+
+    .result {
+      padding: 1.5rem;
+      border-top: 1px solid var(--border);
+      background: var(--bg);
+    }
+
+    .result.empty {
+      display: none;
+    }
+
+    .result-heading {
+      margin: 0 0 0.75rem;
+      font-size: 0.8125rem;
+      font-weight: 500;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.025em;
+    }
+
+    .verdict {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.375rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.875rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      margin-bottom: 1rem;
+    }
+
+    .verdict.phishing {
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      color: var(--danger);
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+    }
+
+    .verdict.legitimate {
+      background: color-mix(in srgb, var(--success) 14%, transparent);
+      color: var(--success);
+      border: 1px solid color-mix(in srgb, var(--success) 35%, transparent);
+    }
+
+    .confidence {
+      margin-bottom: 1rem;
+    }
+
+    .confidence-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.8125rem;
+      color: var(--muted);
+      margin-bottom: 0.375rem;
+    }
+
+    .confidence-track {
+      height: 0.5rem;
+      background: var(--panel);
+      border-radius: 999px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .confidence-bar {
+      height: 100%;
+      background: var(--accent);
+      border-radius: 999px;
+      transition: width 0.3s ease;
+    }
+
+    .reason {
+      margin: 0;
+      padding: 0.875rem 1rem;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 0.5rem;
+      font-size: 0.9375rem;
+      color: var(--text);
+    }
+
+    .error {
+      margin: 0;
+      padding: 0.875rem 1rem;
+      background: color-mix(in srgb, var(--danger) 10%, transparent);
+      border: 1px solid color-mix(in srgb, var(--danger) 35%, transparent);
+      border-radius: 0.5rem;
+      color: var(--danger);
+      font-size: 0.9375rem;
+    }
+
+    @media (max-width: 480px) {
+      body {
+        padding: 0.75rem;
+      }
+
+      h1 {
+        font-size: 1.125rem;
+      }
+
+      .editor, .actions, header, .result {
+        padding: 1rem;
+      }
+
+      textarea {
+        min-height: 10rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <h1>Phishing Email Classifier</h1>
+      <p class="subtitle">Paste a raw email to classify it via a local Ollama model.</p>
+    </header>
+
+    <section class="editor">
+      <label for="from">From</label>
+      <input type="text" id="from" name="from" placeholder="sender@example.com" autocomplete="off">
+
+      <label for="to">To</label>
+      <input type="text" id="to" name="to" placeholder="recipient@example.com" autocomplete="off">
+
+      <label for="subject">Subject</label>
+      <input type="text" id="subject" name="subject" placeholder="Subject line" autocomplete="off">
+
+      <label for="message">Message</label>
+      <textarea id="message" name="message" placeholder="Full email body"></textarea>
+    </section>
+
+    <div class="actions">
+      <button type="button" id="classifyBtn">
+        <span class="spinner" id="spinner" hidden></span>
+        <span id="btnText">Classify</span>
+      </button>
+      <button type="button" class="secondary" id="clearBtn">Clear</button>
+    </div>
+
+    <section class="result empty" id="result" aria-live="polite">
+      <p class="result-heading">Result</p>
+      <div id="resultBody"></div>
+    </section>
+  </main>
+
+  <script>
+    const classifyBtn = document.getElementById('classifyBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const result = document.getElementById('result');
+    const resultBody = document.getElementById('resultBody');
+
+    function getFields() {
+      return {
+        from: document.getElementById('from').value.trim(),
+        to: document.getElementById('to').value.trim(),
+        subject: document.getElementById('subject').value.trim(),
+        message: document.getElementById('message').value.trim(),
+      };
+    }
+
+    function setLoading(isLoading) {
+      classifyBtn.disabled = isLoading;
+      spinner.hidden = !isLoading;
+      btnText.textContent = isLoading ? 'Classifying...' : 'Classify';
+    }
+
+    function renderResult(data) {
+      result.classList.remove('empty');
+      const verdictClass = data.classification === 'PHISHING' ? 'phishing' : 'legitimate';
+      const label = data.classification === 'PHISHING' ? 'Phishing' : 'Legitimate';
+      resultBody.innerHTML = `
+        <div class="verdict ${verdictClass}">${label}</div>
+        <div class="confidence">
+          <div class="confidence-label">
+            <span>Confidence</span>
+            <span>${Math.round(data.confidence)}%</span>
+          </div>
+          <div class="confidence-track">
+            <div class="confidence-bar" style="width: ${Math.max(0, Math.min(100, data.confidence))}%"></div>
+          </div>
+        </div>
+        <p class="reason">${escapeHtml(data.reason)}</p>
+      `;
+    }
+
+    function renderError(message) {
+      result.classList.remove('empty');
+      resultBody.innerHTML = `<p class="error">${escapeHtml(message)}</p>`;
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    classifyBtn.addEventListener('click', async () => {
+      setLoading(true);
+      resultBody.innerHTML = '';
+      result.classList.add('empty');
+
+      try {
+        const response = await fetch('/api/classify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(getFields()),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error || `Server error ${response.status}`);
+        }
+
+        renderResult(data);
+      } catch (err) {
+        renderError(err.message || 'Could not classify email.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    clearBtn.addEventListener('click', () => {
+      document.getElementById('from').value = '';
+      document.getElementById('to').value = '';
+      document.getElementById('subject').value = '';
+      document.getElementById('message').value = '';
+      resultBody.innerHTML = '';
+      result.classList.add('empty');
+    });
+  </script>
+</body>
+</html>

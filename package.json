@@ -1,8 +1,15 @@
 {
+  "name": "phishing-email-classifier",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Local-LLM phishing email classifier with web UI, benchmark suite, and RAG-ready seams.",
   "dependencies": {
     "mailparser": "^3.9.10"
   },
-  "type": "module"
+  "scripts": {
+    "test": "node --test",
+    "serve": "node server.js",
+    "benchmark:smoke": "node benchmark.js 20",
+    "benchmark:all": "node benchmark.js all"
+  }
 }
-
-

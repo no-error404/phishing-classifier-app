@@ -1,69 +1,125 @@
-import { readFile } from 'fs/promises';
-import { classifyEmail } from './classifier.js';
-import path from 'path';
+import { readFile, mkdir, writeFile } from "node:fs/promises";
+import path from "node:path";
+import { classifyEmail } from "./classifier.js";
+import { scoreMatrix } from "./score.js";
 
-async function runBenchmark() {
-// 1. Load and parse the benchmark emails from the JSON file
-const filePath = path.join(import.meta.dirname, 'emails.json');    
-const rawData = await readFile(filePath, 'utf-8');
-const emails = JSON.parse(rawData).slice(0, 20); // Limit to 20 emails for testing
+const DATA_FILE = path.join(import.meta.dirname, "emails.json");
+const REPORT_DIR = path.join(import.meta.dirname, "benchmark-results");
 
-// 2. Initialize counters for classification results
-let truePositive = 0;
-let falsePositive = 0;
-let trueNegative = 0;
-let falseNegative = 0;
-
-// 3. Iterate through each email and classify it
-for (const email of emails) {
-    console.log(`Classifying email from: ${email.from}, subject: ${email.subject}`);
-
-    try{
-        //try get a prediction from the classifier
-    const prediction = await classifyEmail(email);
-    const predictedLabel = prediction.classification;
-    const actualLabel = email.label;
-
-    // 4. Update counters based on the prediction and actual label
-    if (predictedLabel === "PHISHING" && actualLabel === "PHISHING") {
-        truePositive++;
-    } else if (predictedLabel === "PHISHING" && actualLabel === "LEGITIMATE") {
-        falsePositive++;
-    } else if (predictedLabel === "LEGITIMATE" && actualLabel === "LEGITIMATE") {
-        trueNegative++;
-    } else if (predictedLabel === "LEGITIMATE" && actualLabel === "PHISHING") {
-        falseNegative++;
-    }
-} catch (error) {
-    console.error(`Error classifying email from: ${email.from}, subject: ${email.subject}`, error);
-}}
-
-// 5. Log the classification result for each email
-console.log(`TP: ${truePositive}, FP: ${falsePositive}, TN: ${trueNegative}, FN: ${falseNegative}`);
-
-// 🎯 Precision: Out of all the emails we *flagged* as phishing, how many actually were?
-const precision = (truePositive + falsePositive) > 0 
-    ? truePositive / (truePositive + falsePositive) 
-    : 0;
-
-// 🕵️ Recall: Out of all the *actual* phishing emails, how many did we catch?
-const recall = (truePositive + falseNegative) > 0 
-    ? truePositive / (truePositive + falseNegative) 
-    : 0;
-
-// ⚖️ F1 Score: The balance between Precision and Recall
-const f1 = (precision + recall) > 0 
-    ? 2 * ((precision * recall) / (precision + recall)) 
-    : 0;
-
-// Convert decimals to formatted percentage strings
-const precisionPercent = (precision * 100).toFixed(2);
-const recallPercent = (recall * 100).toFixed(2);
-const f1Percent = (f1 * 100).toFixed(2);
-
-console.log(`\n--- Benchmark Results ---`);
-console.log(`Precision: ${precisionPercent}%`);
-console.log(`Recall:    ${recallPercent}%`);
-console.log(`F1 Score:  ${f1Percent}%`);
+function parseCountArg(arg) {
+  if (!arg || arg === "all") return "all";
+  const n = Number(arg);
+  if (!Number.isFinite(n) || n <= 0 || !Number.isInteger(n)) {
+    throw new Error(`Invalid count argument: ${arg}. Use a positive integer or "all".`);
+  }
+  return n;
 }
-runBenchmark()
+
+async function writeReport(report, reportDir = REPORT_DIR) {
+  await mkdir(reportDir, { recursive: true });
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const reportPath = path.join(reportDir, `benchmark-${timestamp}.json`);
+  await writeFile(reportPath, JSON.stringify(report, null, 2));
+  return reportPath;
+}
+
+async function runBenchmark(options = {}) {
+  const rawCount = options.count ?? process.argv[2] ?? "all";
+  const count = parseCountArg(rawCount);
+
+  const dataFile = options.dataFile || DATA_FILE;
+  const rawData = await readFile(dataFile, "utf-8");
+  let emails = JSON.parse(rawData);
+  if (count !== "all") {
+    emails = emails.slice(0, count);
+  }
+
+  let truePositive = 0;
+  let falsePositive = 0;
+  let trueNegative = 0;
+  let falseNegative = 0;
+  let errors = 0;
+  const details = [];
+
+  for (const email of emails) {
+    const record = {
+      from: email.from,
+      subject: email.subject,
+      actual: email.label,
+      predicted: null,
+      confidence: null,
+      error: null,
+    };
+
+    try {
+      const prediction = await classifyEmail(email, options.classifierOptions);
+      const predictedLabel = prediction.classification;
+      record.predicted = predictedLabel;
+      record.confidence = prediction.confidence;
+
+      if (predictedLabel === "PHISHING" && email.label === "PHISHING") {
+        truePositive++;
+      } else if (predictedLabel === "PHISHING" && email.label === "LEGITIMATE") {
+        falsePositive++;
+      } else if (predictedLabel === "LEGITIMATE" && email.label === "LEGITIMATE") {
+        trueNegative++;
+      } else if (predictedLabel === "LEGITIMATE" && email.label === "PHISHING") {
+        falseNegative++;
+      }
+    } catch (error) {
+      errors++;
+      record.error = error.message || String(error);
+    }
+
+    details.push(record);
+  }
+
+  const metrics = scoreMatrix(truePositive, falsePositive, trueNegative, falseNegative);
+  const report = {
+    timestamp: new Date().toISOString(),
+    total: emails.length,
+    classified: emails.length - errors,
+    errors,
+    counts: { truePositive, falsePositive, trueNegative, falseNegative },
+    metrics: {
+      precision: metrics.precision,
+      recall: metrics.recall,
+      f1: metrics.f1,
+      accuracy: metrics.accuracy,
+    },
+    percentages: {
+      precision: `${(metrics.precision * 100).toFixed(2)}%`,
+      recall: `${(metrics.recall * 100).toFixed(2)}%`,
+      f1: `${(metrics.f1 * 100).toFixed(2)}%`,
+      accuracy: `${(metrics.accuracy * 100).toFixed(2)}%`,
+    },
+    details,
+  };
+
+  const reportPath = await writeReport(report);
+  return { report, reportPath };
+}
+
+async function main() {
+  const { report, reportPath } = await runBenchmark();
+
+  console.log("\n--- Benchmark Results ---");
+  console.log(`Total:      ${report.total}`);
+  console.log(`Classified: ${report.classified}`);
+  console.log(`Errors:     ${report.errors}`);
+  console.log(`TP: ${report.counts.truePositive} | FP: ${report.counts.falsePositive} | TN: ${report.counts.trueNegative} | FN: ${report.counts.falseNegative}`);
+  console.log(`Precision: ${report.percentages.precision}`);
+  console.log(`Recall:    ${report.percentages.recall}`);
+  console.log(`F1 Score:  ${report.percentages.f1}`);
+  console.log(`Accuracy:  ${report.percentages.accuracy}`);
+  console.log(`\nReport written to: ${reportPath}`);
+}
+
+if (import.meta.main) {
+  main().catch((error) => {
+    console.error("Benchmark failed:", error.message || error);
+    process.exit(1);
+  });
+}
+
+export { runBenchmark, parseCountArg, writeReport, scoreMatrix };
